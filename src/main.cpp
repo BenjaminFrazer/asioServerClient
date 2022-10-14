@@ -1,9 +1,11 @@
+#include <cstdint>
 #include <iostream>
 #include "net_common.h"
 
 using namespace std;
 
 int main(int argc, char *argv[]) {
+    /// test message class
     Message<int> message;
     int a = 1;
     int b = 2;
@@ -23,4 +25,8 @@ int main(int argc, char *argv[]) {
     std::cout << "b out: " << b_out << "\n";
     std::cout << "c.z out: " << c_out.z << "\n";
     return 0;
+
+    /// test the client class
+    ClientIf<int> client;
+    client.connect("test_socket");
 }
