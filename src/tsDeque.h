@@ -39,7 +39,7 @@ class TsDeque{
             const std::lock_guard<std::mutex> lock(mu);
             return q.at(i);
         };
-        const bool& empty(){
+        bool empty(){
             return q.empty();
         };
     protected:

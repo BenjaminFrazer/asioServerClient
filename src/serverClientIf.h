@@ -19,6 +19,15 @@ class ClientIf{
             con_ptr = std::make_unique<Connection<T>>(Connection<T>::CLIENT, domain, context,q_rec);
             con_ptr->connect();
         }
+        void disconnect(){
+            con_ptr->exit();
+        }
+        bool isConnected() const{
+        return con_ptr->isConnected();
+        };
+        void send(Message<T> msg){
+            con_ptr->send(msg);
+        };
         // refference to connection's outgoing message que
         std::shared_ptr<TsDeque<Message<T>>> q_send_reff=nullptr;
         TsDeque<OwnedMessage<T>> q_rec; /// incoming message que
@@ -35,6 +44,19 @@ class ServerIf{
         };
         void start(){
             // start accepting connections
+            acceptNew();
+            workerThread = std::thread([this](){
+                context.run();
+            });
+        };
+        void stop(){
+            for (auto connection :con){
+                connection->exit();
+            }
+            context.stop();
+            if (workerThread.joinable()) workerThread.join();
+        }
+        void acceptNew(){
             acceptor.async_accept([this](std::error_code ec,
                                          asio::local::stream_protocol::socket sock){
                 if (!ec){
@@ -43,12 +65,13 @@ class ServerIf{
                                                                   context,
                                                                   q_rec);
                     con.push_back(std::move(newCon));
+                    acceptNew();
+                }
+                else {
+                    std::cout << "Failed to accept connection: " << ec.value() <<"\n";
                 }
             });
-            std::thread([this](){
-                context.run();
-            });
-        };
+        }
         void end(){
         };
         TsDeque<OwnedMessage<T>> q_rec; /// incoming message que
@@ -56,6 +79,7 @@ class ServerIf{
         std::vector<std::shared_ptr<Connection<T>>> con; /// all currently active connecions
         asio::io_context context;
         asio::local::stream_protocol::acceptor acceptor;
+        std::thread workerThread;
 };
 
 #endif // SERVERCLIENTIF_H_

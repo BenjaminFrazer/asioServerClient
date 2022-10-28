@@ -14,12 +14,17 @@ class Connection;
 template <typename T>
 struct Header{
     T type;
-    uint32_t length;
+    uint32_t length=0;
 };
 
 template <typename T>
 class Message{
     public:
+        Message<T>(T type){
+            header.type = type;
+        };
+        Message<T>(){
+        };
         Header<T> header;
         std::vector<uint8_t> body;
         template<typename TypeName>
@@ -29,6 +34,7 @@ class Message{
             int oldSize = msg.body.size();
             msg.body.resize(dataSize+oldSize);
             memcpy(&msg.body[oldSize], &in, dataSize);
+            msg.header.length = msg.body.size();
             return msg;
         }
         template<typename TypeName>
@@ -37,6 +43,7 @@ class Message{
             int dataSize = sizeof(TypeName);
             memcpy(&out, &msg.body[msg.body.size()-dataSize], dataSize);
             msg.body.resize(msg.body.size()-dataSize);
+            msg.header.length = msg.body.size();
             return msg;
         }
 };

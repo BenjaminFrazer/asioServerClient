@@ -17,7 +17,7 @@ class Connection : public std::enable_shared_from_this<Connection<T>> {
         };
         Type type;
         Connection<T>(Type TYPE, std::string Domain_path, asio::io_context& Context, TsDeque<OwnedMessage<T>>& Q_rec)
-            : context(Context), q_rec_reff(Q_rec), sock(Context){
+            : context(Context), q_rec_reff(Q_rec), sock(context){
             type = TYPE;
             domain_path = Domain_path;
         }
@@ -35,9 +35,16 @@ class Connection : public std::enable_shared_from_this<Connection<T>> {
                 else {std::cout <<"Failed to connect!\n";
                 }
             });
-            std::thread([this](){
+            workerThread = std::thread([this](){
                 context.run(); //set off our work
             });
+        }
+        void exit(){
+            context.stop();
+            if (workerThread.joinable()) workerThread.join();
+        }
+        bool isConnected() const {
+            return sock.is_open();
         }
         asio::io_context &context; /// reference to the client's asio context
         TsDeque<OwnedMessage<T>>& q_rec_reff;
@@ -45,7 +52,7 @@ class Connection : public std::enable_shared_from_this<Connection<T>> {
         void send(const Message<T>& msg){
             asio::post(context,[this,msg](){ // i guess we use post here for thread safety?
                 bool currentlyNotWriting = q_out.empty();
-                q_out.pushback(msg);
+                q_out.push_back(msg);
                 // we infer that there isn't currently a write loop running if the que is empty
                 if(currentlyNotWriting){ // start off a write task
                         writeNextHeader();
@@ -87,7 +94,9 @@ class Connection : public std::enable_shared_from_this<Connection<T>> {
                             );
         }
         void writeNextHeader(){
-            sock.write_some(&asio::buffer(q_out.front().header,sizeof(q_out.front().header.size)),[this](std::error_code ec,std::size_t length){
+            async_write(sock,
+                        asio::buffer(&q_out.front().header,sizeof(q_out.front().header)),
+                        [this](std::error_code ec,std::size_t length){
                 if (!ec){
                     if (q_out.front().body.size()>0){ // check that the there is data in the body
                         writeNextBody();
@@ -107,7 +116,9 @@ class Connection : public std::enable_shared_from_this<Connection<T>> {
             );
         };
         void writeNextBody(){
-            sock.async_write_some(asio::buffer(q_out.front().body.data(),q_out.front().body.size()), [this](std::error_code ec, std::size_t len){
+            async_write(sock,
+                        asio::buffer(q_out.front().body.data(),q_out.front().body.size()),
+                        [this](std::error_code ec, std::size_t len){
                 if (!ec){
                     if (q_out.empty()){
                         writeNextHeader();
@@ -129,6 +140,7 @@ class Connection : public std::enable_shared_from_this<Connection<T>> {
         asio::local::stream_protocol::socket sock;
         std::string domain_path;
         Message<T> _tmpMsgIn; /// current incoming message
+        std::thread workerThread;
 };
 
 #endif // CONNECTION_H_
