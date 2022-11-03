@@ -18,9 +18,14 @@ class ClientIf{
             //construct a unique instance of the connection class and let it set up it's asio stuff
             con_ptr = std::make_unique<Connection<T>>(Connection<T>::CLIENT, domain, context,q_rec);
             con_ptr->connect();
+            workerThread = std::thread([this](){
+                context.run();
+            });
         }
         void disconnect(){
-            con_ptr->exit();
+            con_ptr->disconnect();
+            context.stop();
+            if (workerThread.joinable()) workerThread.join();
         }
         bool isConnected() const{
         return con_ptr->isConnected();
@@ -32,8 +37,9 @@ class ClientIf{
         std::shared_ptr<TsDeque<Message<T>>> q_send_reff=nullptr;
         TsDeque<OwnedMessage<T>> q_rec; /// incoming message que
         asio::io_context context; /// reference to the client's asio context
-    protected:
+    public:
         std::unique_ptr<Connection<T>> con_ptr=nullptr;
+        std::thread workerThread;
 };
 
 template <typename T>
@@ -49,9 +55,10 @@ class ServerIf{
                 context.run();
             });
         };
+
         void stop(){
-            for (auto connection :con){
-                connection->exit();
+            for (auto connection :con_ptr){
+                connection->disconnect();
             }
             context.stop();
             if (workerThread.joinable()) workerThread.join();
@@ -60,11 +67,13 @@ class ServerIf{
             acceptor.async_accept([this](std::error_code ec,
                                          asio::local::stream_protocol::socket sock){
                 if (!ec){
+                    std::cout << "[ Server ] New Connection Established"<<sock.local_endpoint() <<"\n";
                     auto newCon = std::make_shared<Connection<T>>(Connection<T>::SERVER,
                                                                   std::move(sock),
                                                                   context,
                                                                   q_rec);
-                    con.push_back(std::move(newCon));
+                    // newCon->connect();
+                    con_ptr.push_back(std::move(newCon));
                     acceptNew();
                 }
                 else {
@@ -75,8 +84,8 @@ class ServerIf{
         void end(){
         };
         TsDeque<OwnedMessage<T>> q_rec; /// incoming message que
-    protected:
-        std::vector<std::shared_ptr<Connection<T>>> con; /// all currently active connecions
+    public:
+        std::vector<std::shared_ptr<Connection<T>>> con_ptr; /// all currently active connecions
         asio::io_context context;
         asio::local::stream_protocol::acceptor acceptor;
         std::thread workerThread;

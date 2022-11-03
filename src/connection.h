@@ -23,28 +23,34 @@ class Connection : public std::enable_shared_from_this<Connection<T>> {
         }
         Connection<T>(Type TYPE, asio::local::stream_protocol::socket Sock, asio::io_context& Context, TsDeque<OwnedMessage<T>>& Q_rec)
             : context(Context), q_rec_reff(Q_rec), sock(std::move(Sock)){
+                std::cout << "Connection Constructor\n";
         }
         void connect(){
             asio::local::stream_protocol::endpoint ep(domain_path); /// create end point
-            sock.async_connect(ep,[this](const asio::error_code& ec){/// async connection
+            sock.async_connect(ep,
+                [this](const asio::error_code& ec){/// async connection
                 if (!ec){
                     std::cout << "Successfully connected!\n";
                     // here we want to stage some further async work
                     readHeader();
                 }
-                else {std::cout <<"Failed to connect!\n";
+                else {
+                    std::cout <<"Failed to connect: "<<ec.message()<<"\n";
                 }
             });
-            workerThread = std::thread([this](){
-                context.run(); //set off our work
-            });
         }
-        void exit(){
-            context.stop();
-            if (workerThread.joinable()) workerThread.join();
+        void disconnect(){
+            sock.close();
         }
         bool isConnected() const {
             return sock.is_open();
+            auto var = sock.remote_endpoint();
+        }
+        asio::local::basic_endpoint<asio::local::stream_protocol> remote_endpoint(){
+            return sock.remote_endpoint();
+        }
+        asio::local::basic_endpoint<asio::local::stream_protocol> local_endpoint(){
+            return sock.local_endpoint();
         }
         asio::io_context &context; /// reference to the client's asio context
         TsDeque<OwnedMessage<T>>& q_rec_reff;
@@ -61,7 +67,7 @@ class Connection : public std::enable_shared_from_this<Connection<T>> {
         }
     protected:
         void readHeader(){
-            asio::async_read(sock,asio::buffer(&_tmpMsgIn.header,sizeof(_tmpMsgIn.header)),[this](std::error_code ec,std::size_t len){
+            asio::async_read(sock,asio::buffer(&_tmpMsgIn.header,sizeof(Header<T>)),[this](std::error_code ec,std::size_t len){
                 if(!ec){
                     if(_tmpMsgIn.header.length>0){
                         readBody(_tmpMsgIn.header.length);
@@ -94,8 +100,8 @@ class Connection : public std::enable_shared_from_this<Connection<T>> {
                             );
         }
         void writeNextHeader(){
-            async_write(sock,
-                        asio::buffer(&q_out.front().header,sizeof(q_out.front().header)),
+            asio::async_write(sock,
+                        asio::buffer(&q_out.front().header,sizeof(Header<T>)),
                         [this](std::error_code ec,std::size_t length){
                 if (!ec){
                     if (q_out.front().body.size()>0){ // check that the there is data in the body
@@ -116,11 +122,12 @@ class Connection : public std::enable_shared_from_this<Connection<T>> {
             );
         };
         void writeNextBody(){
-            async_write(sock,
+            asio::async_write(sock,
                         asio::buffer(q_out.front().body.data(),q_out.front().body.size()),
                         [this](std::error_code ec, std::size_t len){
+                q_out.pop_front(); /// clear the front of the que
                 if (!ec){
-                    if (q_out.empty()){
+                    if (!q_out.empty()){
                         writeNextHeader();
                     }
                 }

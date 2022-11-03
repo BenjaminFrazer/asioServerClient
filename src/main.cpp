@@ -1,35 +1,21 @@
 #include <cstdint>
 #include <iostream>
 #include "net_common.h"
+#include <unistd.h>
 #define DOMAIN "/tmp/asio_test.sock"
 
 using namespace std;
 int main(int argc, char *argv[]) {
-    /// test message class
-    // Message<int> message;
-    // int a = 1;
-    // int b = 2;
-    // struct C {
-    //     float z;
-    //     float x;
-    //     float y;
-    // };
 
-    // C c{3.14, 99.2,44.3};
-    // int a_out;
-    // int b_out;
-    // C c_out;
-    // message << c << b << a;
-    // message >> a_out >> b_out >> c_out;
-    // std::cout << "a out: " << a_out << "\n";
-    // std::cout << "b out: " << b_out << "\n";
-    // std::cout << "c.z out: " << c_out.z << "\n";
-    // return 0;
     enum class msgs {
+    invalid_msg,
     testMsg
     };
 
     Message<msgs> msg(msgs::testMsg);
+    char testCharSent[] = "hello";
+    char testCharRec[] = "overw";
+    msg << testCharSent;
 
     /// test the client class
     unlink(DOMAIN);
@@ -38,6 +24,17 @@ int main(int argc, char *argv[]) {
     server.start();
     client.connect(DOMAIN);
     client.send(msg);
+    bool clientStopped = client.context.stopped();
+    bool serverStopped = server.context.stopped();
+    auto server_Ep = server.con_ptr.front()->local_endpoint();
+    auto client_Ep = client.con_ptr->local_endpoint();
+    while (server.q_rec.empty()){
+        sleep(1);
+    }
+    auto rec = server.q_rec.pop_front();
+    rec.msg >> testCharRec;
+    std::cout << "Recieved msg: " << testCharRec << "\n";
+    getchar();
     client.disconnect();
     server.stop();
     return 0;

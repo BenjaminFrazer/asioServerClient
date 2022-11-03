@@ -40,11 +40,17 @@ class Message{
         template<typename TypeName>
         friend Message<T>& operator>>(Message<T>& msg, TypeName &out){
             static_assert(std::is_pod<TypeName>::value,"Cannot take complex data types");
-            int dataSize = sizeof(TypeName);
+            size_t dataSize = sizeof(TypeName);
+            if (dataSize <= msg.body.size()){
             memcpy(&out, &msg.body[msg.body.size()-dataSize], dataSize);
             msg.body.resize(msg.body.size()-dataSize);
             msg.header.length = msg.body.size();
+            }
+            else{
+                std::cout << "Message body smaller than type requested!\n";
+            }
             return msg;
+
         }
 };
 
