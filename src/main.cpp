@@ -22,13 +22,16 @@ int main(int argc, char *argv[]) {
     ClientIf<msgs> client;
     ServerIf<msgs> server(DOMAIN);
     server.start();
+    sleep(1);
     client.connect(DOMAIN);
     client.send(msg);
     bool clientStopped = client.context.stopped();
     bool serverStopped = server.context.stopped();
     auto server_Ep = server.con_ptr.front()->local_endpoint();
     auto client_Ep = client.con_ptr->local_endpoint();
-    while (server.q_rec.empty()){
+    bool doCont = true;
+    while (doCont){
+        doCont = server.q_rec.empty();
         sleep(1);
     }
     auto rec = server.q_rec.pop_front();

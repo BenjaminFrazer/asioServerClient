@@ -7,6 +7,7 @@
 #include <memory>
 #include "tsDeque.h"
 #include "connection.h"
+
 /// forward declaration
 template <typename T>
 class Connection;
