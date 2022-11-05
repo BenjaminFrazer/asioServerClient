@@ -38,3 +38,5 @@ tmp/
 *.app
 
 .ccls-cache
+/src/streamClient
+/src/streamServer
