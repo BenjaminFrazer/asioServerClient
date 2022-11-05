@@ -11,5 +11,4 @@
 #include "serverClientIf.h"
 
 
-
 #endif // NET_COMMON_H_

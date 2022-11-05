@@ -8,7 +8,7 @@
 #include "tsDeque.h"
 #include "connection.h"
 #include "message.h"
-
+#include "debugMsg.h"
 template <typename T>
 class ClientIf{
     public:
@@ -17,7 +17,11 @@ class ClientIf{
         void connect(std::string domain){
             //construct a unique instance of the connection class and let it set up it's asio stuff
             con_ptr = std::make_unique<Connection<T>>(Connection<T>::CLIENT, domain, context,q_rec);
+            DBG_STREAM << "[ Client ] Calling con_ptr->connect()\n";
             con_ptr->connect();
+            #if defined DO_DEBUG
+            std::cout << "[ Client ] Calling context.run() on worker thread:\n";
+            #endif
             workerThread = std::thread([this](){
                 context.run();
             });
@@ -51,6 +55,10 @@ class ServerIf{
         void start(){
             // start accepting connections
             acceptNew();
+
+            #if defined DO_DEBUG
+            std::cout << "[ Server ] Calling context.run() on worker thread:\n";
+            #endif
             workerThread = std::thread([this](){
                 context.run();
             });
@@ -67,7 +75,9 @@ class ServerIf{
             acceptor.async_accept([this](std::error_code ec,
                                          asio::local::stream_protocol::socket sock){
                 if (!ec){
-                    std::cout << "[ Server ] New Connection Established"<<sock.local_endpoint() <<"\n";
+                    #if defined DO_DEBUG
+                    std::cout << "[ Server ] New Connection Established: "<< sock.local_endpoint() <<"\n";
+                    #endif
                     auto newCon = std::make_shared<Connection<T>>(Connection<T>::SERVER,
                                                                   std::move(sock),
                                                                   context,

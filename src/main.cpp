@@ -1,3 +1,4 @@
+// #define DO_DEBUG true
 #include <cstdint>
 #include <iostream>
 #include "net_common.h"
@@ -22,8 +23,8 @@ int main(int argc, char *argv[]) {
     ClientIf<msgs> client;
     ServerIf<msgs> server(DOMAIN);
     server.start();
-    sleep(1);
     client.connect(DOMAIN);
+    sleep(1);
     client.send(msg);
     bool clientStopped = client.context.stopped();
     bool serverStopped = server.context.stopped();
