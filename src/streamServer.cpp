@@ -11,7 +11,7 @@
 #include <asio.hpp>
 #include <iostream>
 #include <memory>
-
+#include "debugMsg.h"
 
 using asio::local::stream_protocol;
 
