@@ -11,6 +11,7 @@
 #include <asio.hpp>
 #include <iostream>
 #include <memory>
+#define DO_DEBUG
 #include "debugMsg.h"
 
 using asio::local::stream_protocol;
@@ -22,8 +23,11 @@ public:
   session(asio::io_context& io_context)
     : socket_(io_context)
   {
+      DBG_STREAM << "[ session ] Constructed!\n";
   }
-
+  ~session(){
+    DBG_STREAM << "[ session ] Destructed!\n";
+  }
   stream_protocol::socket& socket()
   {
     return socket_;

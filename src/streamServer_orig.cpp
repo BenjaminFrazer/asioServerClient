@@ -15,6 +15,8 @@
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/asio.hpp>
+#define DO_DEBUG
+#include "debugMsg.h"
 
 #if defined(BOOST_ASIO_HAS_LOCAL_SOCKETS)
 
@@ -27,6 +29,10 @@ public:
   session(boost::asio::io_context& io_context)
     : socket_(io_context)
   {
+      DBG_STREAM << "[ session ] Constructed!\n";
+  }
+  ~session(){
+    DBG_STREAM << "[ session ] Destructed!\n";
   }
 
   stream_protocol::socket& socket()
